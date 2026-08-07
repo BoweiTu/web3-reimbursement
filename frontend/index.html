@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BlockReimburse - Web3 区块链报销系统</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>
+</head>
+<body>
+
+  <!-- ========== Header ========== -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <div class="logo-icon">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <rect x="2" y="2" width="11" height="11" rx="2" fill="#6366F1"/>
+            <rect x="15" y="2" width="11" height="11" rx="2" fill="#8B5CF6" opacity="0.6"/>
+            <rect x="2" y="15" width="11" height="11" rx="2" fill="#8B5CF6" opacity="0.6"/>
+            <rect x="15" y="15" width="11" height="11" rx="2" fill="#6366F1"/>
+          </svg>
+        </div>
+        <span class="logo-text">Block<span class="logo-accent">Reimburse</span></span>
+      </div>
+      <div class="header-right">
+        <span class="network-badge" id="networkBadge">
+          <span class="dot dot-demo"></span>
+          <span>Demo 模式</span>
+        </span>
+        <button class="btn btn-connect" id="connectBtn">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M11 3a3 3 0 0 1 0 6H5a2 2 0 0 1 0-4h6a1 1 0 0 0 0-2H5a3 3 0 0 0 0 6h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <span>连接钱包</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========== Hero ========== -->
+  <section class="hero">
+    <div class="hero-bg-glow"></div>
+    <div class="hero-content">
+      <div class="hero-tag">Monad Playground Hackathon</div>
+      <h1>Web3 区块链报销全流程工作流</h1>
+      <p class="hero-subtitle">凭证上链存证 · 多级审批留痕 · 防篡改审计 · 重复报销拦截</p>
+      <div class="hero-stats">
+        <div class="stat-card">
+          <div class="stat-value" id="statTotal">—</div>
+          <div class="stat-label">总报销单</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value stat-pending" id="statPending">—</div>
+          <div class="stat-label">待审批</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value stat-success" id="statSettled">—</div>
+          <div class="stat-label">已结算</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value stat-danger" id="statRejected">—</div>
+          <div class="stat-label">已驳回</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== Tabs ========== -->
+  <nav class="tabs">
+    <button class="tab active" data-tab="submit">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2v10m0-10l-3 3m3-3l3 3M3 14h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>提交报销</span>
+    </button>
+    <button class="tab" data-tab="approve">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 9l3 3 7-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>审批管理</span>
+    </button>
+    <button class="tab" data-tab="settle">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M9 5v4l2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <span>财务结算</span>
+    </button>
+    <button class="tab" data-tab="audit">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 4h14M2 9h14M2 14h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <span>审计追踪</span>
+    </button>
+  </nav>
+
+  <!-- ========== Content ========== -->
+  <main class="content">
+
+    <!-- ===== Submit Tab ===== -->
+    <div class="tab-content active" id="tab-submit">
+      <div class="card form-card">
+        <div class="card-header">
+          <h2>提交报销申请</h2>
+          <p>填写报销信息，上传凭证后系统会自动计算哈希并上链存证</p>
+        </div>
+        <form id="submitForm" class="reimburse-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label>报销类目 <span class="required">*</span></label>
+              <select id="category" required>
+                <option value="">请选择</option>
+                <option value="差旅费">差旅费</option>
+                <option value="餐饮费">餐饮费</option>
+                <option value="办公用品">办公用品</option>
+                <option value="交通费">交通费</option>
+                <option value="会议费">会议费</option>
+                <option value="培训费">培训费</option>
+                <option value="其他">其他</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>报销金额 (MON) <span class="required">*</span></label>
+              <input type="number" id="amount" step="0.0001" min="0.0001" placeholder="0.00" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>报销事由 <span class="required">*</span></label>
+            <textarea id="description" rows="2" placeholder="简要说明报销事由，例如：上海客户拜访差旅费" required></textarea>
+          </div>
+          <div class="form-group">
+            <label>上传凭证（发票/小票） <span class="required">*</span></label>
+            <div class="upload-zone" id="uploadZone">
+              <div class="upload-placeholder" id="uploadPlaceholder">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none"><path d="M20 28V12m0 0l-6 6m6-6l6 6M8 32h24" stroke="#6B7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <p>点击或拖拽文件到此处上传</p>
+                <span>支持 PNG / JPG / PDF，系统将自动计算 SHA-256 哈希</span>
+              </div>
+              <div class="upload-preview" id="uploadPreview" style="display:none;">
+                <div class="preview-info">
+                  <span class="preview-name" id="previewName"></span>
+                  <span class="preview-hash" id="previewHash"></span>
+                </div>
+                <button type="button" class="btn-remove" id="removeFile">移除</button>
+              </div>
+              <input type="file" id="fileInput" accept="image/*,.pdf" hidden>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>IPFS CID</label>
+            <input type="text" id="ipfsHash" placeholder="自动生成（模拟 IPFS 上传）" readonly>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary" id="submitBtn">
+              <span>提交报销上链</span>
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Recent submissions -->
+      <div class="card">
+        <div class="card-header">
+          <h2>我的报销记录</h2>
+        </div>
+        <div id="myReimbursements" class="reimburse-list"></div>
+      </div>
+    </div>
+
+    <!-- ===== Approve Tab ===== -->
+    <div class="tab-content" id="tab-approve">
+      <div class="card">
+        <div class="card-header">
+          <h2>待审批报销</h2>
+          <p>部门负责人和财务人员在此进行审批操作</p>
+        </div>
+        <div id="approveList" class="reimburse-list"></div>
+      </div>
+    </div>
+
+    <!-- ===== Settle Tab ===== -->
+    <div class="tab-content" id="tab-settle">
+      <div class="card">
+        <div class="card-header">
+          <h2>待结算报销</h2>
+          <p>财务审批通过的报销单，确认打款后标记结算</p>
+        </div>
+        <div id="settleList" class="reimburse-list"></div>
+      </div>
+    </div>
+
+    <!-- ===== Audit Tab ===== -->
+    <div class="tab-content" id="tab-audit">
+      <div class="card">
+        <div class="card-header">
+          <h2>审计追踪</h2>
+          <p>全部报销记录链上留痕，不可篡改、不可删除</p>
+          <div class="audit-filters">
+            <button class="filter-btn active" data-filter="all">全部</button>
+            <button class="filter-btn" data-filter="0">待审批</button>
+            <button class="filter-btn" data-filter="1">部门已批</button>
+            <button class="filter-btn" data-filter="2">财务已批</button>
+            <button class="filter-btn" data-filter="3">已结算</button>
+            <button class="filter-btn" data-filter="4">已驳回</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="audit-table" id="auditTable">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>申请人</th>
+                <th>类目</th>
+                <th>金额</th>
+                <th>凭证哈希</th>
+                <th>状态</th>
+                <th>提交时间</th>
+                <th>审批人</th>
+                <th>结算时间</th>
+              </tr>
+            </thead>
+            <tbody id="auditBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ========== Footer ========== -->
+  <footer class="footer">
+    <p>BlockReimburse — Powered by Monad Blockchain | MIT License</p>
+  </footer>
+
+  <!-- ========== Toast ========== -->
+  <div id="toast" class="toast"></div>
+
+  <!-- ========== Reject Modal ========== -->
+  <div class="modal-overlay" id="rejectModal">
+    <div class="modal">
+      <h3>驳回报销</h3>
+      <p>请输入驳回原因（将永久记录在链上）</p>
+      <textarea id="rejectReason" rows="3" placeholder="例如：凭证不清晰，请重新提交"></textarea>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="cancelReject">取消</button>
+        <button class="btn btn-danger" id="confirmReject">确认驳回</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

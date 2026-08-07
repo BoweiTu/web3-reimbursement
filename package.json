@@ -1,0 +1,21 @@
+{
+  "name": "web3-reimbursement",
+  "version": "1.0.0",
+  "description": "Web3 区块链报销全流程工作流智能合约 - 部署在 Monad 测试网",
+  "license": "MIT",
+  "scripts": {
+    "compile": "hardhat compile",
+    "deploy:testnet": "hardhat run scripts/deploy.js --network monadTestnet",
+    "deploy:local": "hardhat run scripts/deploy.js --network hardhat",
+    "serve": "npx http-server frontend -p 3000",
+    "test": "hardhat test",
+    "clean": "hardhat clean"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.22.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  }
+}
