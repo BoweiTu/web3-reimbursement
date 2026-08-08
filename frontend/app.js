@@ -707,14 +707,14 @@ function renderItemHTML(r, showActions) {
       ${rejectInfo}
       ${timeline}
       <div class="chain-evidence">
-        <div class="chain-evidence-header" onclick="toggleEventLog(${r.id})">
+        <div class="chain-evidence-header" onclick="toggleEventLog(this)">
           <span class="chain-evidence-title">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 4h10M2 7h10M2 10h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
             链上事件日志 (${(r.events || buildEventLog(r)).length})
           </span>
-          <span class="chain-evidence-toggle" id="toggle-${r.id}">展开</span>
+          <span class="chain-evidence-toggle">展开</span>
         </div>
-        <div class="chain-evidence-body" id="events-${r.id}" style="display:none;">
+        <div class="chain-evidence-body" style="display:none;">
           <div class="chain-tx-info">
             <div><span class="chain-label">交易哈希:</span> <span class="chain-value">${shortHash(r.submitTxHash)}</span></div>
             <div><span class="chain-label">区块号:</span> <span class="chain-value">#${r.submitBlock}</span></div>
@@ -831,9 +831,12 @@ function renderAudit() {
 
 // ========== 链上存证交互 ==========
 
-function toggleEventLog(id) {
-  const body = document.getElementById(`events-${id}`);
-  const toggle = document.getElementById(`toggle-${id}`);
+function toggleEventLog(el) {
+  const evidence = el.closest('.chain-evidence');
+  if (!evidence) return;
+  const body = evidence.querySelector('.chain-evidence-body');
+  const toggle = evidence.querySelector('.chain-evidence-toggle');
+  if (!body || !toggle) return;
   if (body.style.display === 'none') {
     body.style.display = 'block';
     toggle.textContent = '收起';
