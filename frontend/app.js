@@ -22,6 +22,22 @@ const App = {
   fileName: null,
 };
 
+// ========== 链上存证模拟工具 ==========
+let _mockBlockNum = 15238476;
+function mockTxHash() {
+  return '0x' + Array.from({length: 64}, () => '0123456789abcdef'[Math.floor(Math.random() * 16)]).join('');
+}
+function mockBlockNum() { return ++_mockBlockNum; }
+function buildEventLog(r) {
+  const events = [];
+  events.push({ name: 'ReimbursementSubmitted', txHash: r.submitTxHash || mockTxHash(), block: r.submitBlock || mockBlockNum(), timestamp: r.submittedAt, actor: r.applicant, detail: `提交报销申请，金额 ${r.amount} MON` });
+  if (r.departmentApprovedAt) events.push({ name: 'DepartmentApproved', txHash: r.deptTxHash || mockTxHash(), block: r.deptBlock || mockBlockNum(), timestamp: r.departmentApprovedAt, actor: r.departmentHead, detail: '部门审批通过' });
+  if (r.financeApprovedAt) events.push({ name: 'FinanceApproved', txHash: r.finTxHash || mockTxHash(), block: r.finBlock || mockBlockNum(), timestamp: r.financeApprovedAt, actor: r.financeOfficer, detail: '财务审批通过' });
+  if (r.settledAt) events.push({ name: 'ReimbursementSettled', txHash: r.settleTxHash || mockTxHash(), block: r.settleBlock || mockBlockNum(), timestamp: r.settledAt, actor: r.financeOfficer, detail: '已结算打款' });
+  if (r.status === 4) events.push({ name: 'ReimbursementRejected', txHash: r.rejectTxHash || mockTxHash(), block: r.rejectBlock || mockBlockNum(), timestamp: r.submittedAt, actor: r.rejector, detail: `驳回原因：${r.rejectReason}` });
+  return events;
+}
+
 // ========== Demo 模拟数据 ==========
 const DEMO_DATA = [
   {
@@ -152,6 +168,14 @@ const DEMO_DATA = [
   }
 ];
 
+// 为 Demo 数据生成链上存证信息
+DEMO_DATA.forEach(r => {
+  const events = buildEventLog(r);
+  r.submitTxHash = events[0].txHash;
+  r.submitBlock = events[0].block;
+  r.events = events;
+});
+
 // ========== 状态映射 ==========
 const STATUS_MAP = {
   0: { label: '待审批', class: 'status-pending' },
@@ -251,6 +275,10 @@ function bindEvents() {
       document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       App.currentFilter = btn.dataset.filter;
+      // 同步统计卡片高亮状态
+      document.querySelectorAll('.stat-card').forEach(c => {
+        c.classList.toggle('stat-active', c.dataset.filter === btn.dataset.filter);
+      });
       renderAudit();
     });
   });
@@ -274,6 +302,25 @@ function switchTab(tabName) {
   if (tabName === 'approve') renderApproveList();
   if (tabName === 'settle') renderSettleList();
   if (tabName === 'audit') renderAudit();
+}
+
+// ========== 统计卡片点击筛选 ==========
+
+function filterByStat(filter) {
+  // 切换到审计追踪 Tab
+  switchTab('audit');
+  // 设置筛选条件
+  App.currentFilter = filter;
+  // 同步审计 Tab 筛选按钮的选中状态
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.filter === filter);
+  });
+  // 同步统计卡片的选中高亮状态
+  document.querySelectorAll('.stat-card').forEach(c => {
+    c.classList.toggle('stat-active', c.dataset.filter === filter);
+  });
+  // 渲染审计表格
+  renderAudit();
 }
 
 // ========== 钱包连接 ==========
@@ -465,7 +512,9 @@ async function handleSubmit(e) {
       // Demo 模式模拟提交
       await new Promise(r => setTimeout(r, 800));
       const newId = App.reimbursements.length;
-      App.reimbursements.push({
+      const txHash = mockTxHash();
+      const blockNum = mockBlockNum();
+      const newRecord = {
         id: newId,
         applicant: App.account || '0xDemo...0001',
         category, amount: amountStr,
@@ -476,9 +525,13 @@ async function handleSubmit(e) {
         financeOfficer: '0x0000000000000000000000000000000000000000',
         submittedAt: Date.now(),
         departmentApprovedAt: 0, financeApprovedAt: 0, settledAt: 0,
-        rejectReason: '', rejector: '0x0000000000000000000000000000000000000000'
-      });
-      showToast('Demo 模式：报销已模拟提交上链（ID: ' + newId + '）', 'success');
+        rejectReason: '', rejector: '0x0000000000000000000000000000000000000000',
+        submitTxHash: txHash,
+        submitBlock: blockNum,
+        events: [{ name: 'ReimbursementSubmitted', txHash, block: blockNum, timestamp: Date.now(), actor: App.account || '0xDemo...0001', detail: `提交报销申请，金额 ${amountStr} MON` }]
+      };
+      App.reimbursements.push(newRecord);
+      showToast(`报销已上链！Tx: ${shortHash(txHash)} Block: #${blockNum}`, 'success');
       renderAll();
     }
 
@@ -512,23 +565,34 @@ async function doAction(action, id, extra) {
       await new Promise(r => setTimeout(r, 500));
       const r = App.reimbursements.find(x => x.id === id);
       if (!r) return;
+      if (!r.events) r.events = buildEventLog(r);
+      const txHash = mockTxHash();
+      const blockNum = mockBlockNum();
+      const actor = App.account || '0x1aB3...9fE2';
       if (action === 'deptApprove') {
         r.status = 1;
-        r.departmentHead = App.account || '0x1aB3...9fE2';
+        r.departmentHead = actor;
         r.departmentApprovedAt = Date.now();
+        r.events.push({ name: 'DepartmentApproved', txHash, block: blockNum, timestamp: Date.now(), actor, detail: '部门审批通过' });
+        showToast(`部门审批已上链！Tx: ${shortHash(txHash)} Block: #${blockNum}`, 'success');
       } else if (action === 'financeApprove') {
         r.status = 2;
         r.financeOfficer = App.account || '0x4dE7...3aC1';
         r.financeApprovedAt = Date.now();
+        r.events.push({ name: 'FinanceApproved', txHash, block: blockNum, timestamp: Date.now(), actor: App.account || '0x4dE7...3aC1', detail: '财务审批通过' });
+        showToast(`财务审批已上链！Tx: ${shortHash(txHash)} Block: #${blockNum}`, 'success');
       } else if (action === 'settle') {
         r.status = 3;
         r.settledAt = Date.now();
+        r.events.push({ name: 'ReimbursementSettled', txHash, block: blockNum, timestamp: Date.now(), actor: App.account || '0x4dE7...3aC1', detail: '已结算打款' });
+        showToast(`结算记录已上链！Tx: ${shortHash(txHash)} Block: #${blockNum}`, 'success');
       } else if (action === 'reject') {
         r.status = 4;
         r.rejectReason = extra;
-        r.rejector = App.account || '0x1aB3...9fE2';
+        r.rejector = actor;
+        r.events.push({ name: 'ReimbursementRejected', txHash, block: blockNum, timestamp: Date.now(), actor, detail: `驳回原因：${extra}` });
+        showToast(`驳回记录已上链！Tx: ${shortHash(txHash)} Block: #${blockNum}`, 'success');
       }
-      showToast('Demo 模式：操作已模拟执行', 'success');
       renderAll();
     }
   } catch (err) {
@@ -550,8 +614,9 @@ function closeRejectModal() {
 async function confirmReject() {
   const reason = document.getElementById('rejectReason').value.trim();
   if (!reason) { showToast('请输入驳回原因', 'error'); return; }
+  const rejectId = App.pendingRejectId;  // 先保存 id，再关闭弹窗
   closeRejectModal();
-  await doAction('reject', App.pendingRejectId, reason);
+  await doAction('reject', rejectId, reason);
 }
 
 // ========== 渲染函数 ==========
@@ -623,6 +688,10 @@ function renderItemHTML(r, showActions) {
           <span class="reimburse-id">#${r.id}</span>
           <span class="reimburse-category">${r.category}</span>
           <span class="status-badge ${status.class}">${status.label}</span>
+          <span class="chain-badge" title="数据已上链，不可篡改">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 3h6v6H3z" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 4.5v3M10.5 4.5v3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            链上存证
+          </span>
         </div>
         <div class="reimburse-amount">${amount} <span class="reimburse-amount-unit">MON</span></div>
       </div>
@@ -637,7 +706,44 @@ function renderItemHTML(r, showActions) {
       <div class="reimburse-hash">凭证哈希: ${shortHash(r.credentialHash)}</div>
       ${rejectInfo}
       ${timeline}
-      ${actions ? `<div class="reimburse-actions">${actions}</div>` : ''}
+      <div class="chain-evidence">
+        <div class="chain-evidence-header" onclick="toggleEventLog(${r.id})">
+          <span class="chain-evidence-title">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 4h10M2 7h10M2 10h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+            链上事件日志 (${(r.events || buildEventLog(r)).length})
+          </span>
+          <span class="chain-evidence-toggle" id="toggle-${r.id}">展开</span>
+        </div>
+        <div class="chain-evidence-body" id="events-${r.id}" style="display:none;">
+          <div class="chain-tx-info">
+            <div><span class="chain-label">交易哈希:</span> <span class="chain-value">${shortHash(r.submitTxHash)}</span></div>
+            <div><span class="chain-label">区块号:</span> <span class="chain-value">#${r.submitBlock}</span></div>
+          </div>
+          ${(r.events || buildEventLog(r)).map(e => `
+            <div class="event-log-item">
+              <div class="event-log-name">
+                <span class="event-dot event-${e.name.includes('Submit') ? 'submit' : e.name.includes('Dept') ? 'dept' : e.name.includes('Finance') ? 'finance' : e.name.includes('Settled') ? 'settle' : 'reject'}"></span>
+                ${e.name}
+              </div>
+              <div class="event-log-detail">${e.detail}</div>
+              <div class="event-log-meta">
+                <span>Block #${e.block}</span>
+                <span>Tx: ${shortHash(e.txHash)}</span>
+                <span>${formatTime(e.timestamp)}</span>
+                <span>Actor: ${shortenAddr(e.actor)}</span>
+              </div>
+            </div>
+          `).join('')}
+          <div class="chain-immutability-notice">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1l5 2v4c0 3-2 5-5 6-3-1-5-3-5-6V3l5-2z" stroke="currentColor" stroke-width="1.2"/><path d="M5 7l1.5 1.5L9 5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            以上事件已永久记录在 Monad 区块链上，不可修改、不可删除
+          </div>
+        </div>
+      </div>
+      <div class="reimburse-actions">
+        <button class="btn btn-ghost btn-sm" onclick="verifyCredential('${r.credentialHash}', ${r.id})">验证凭证唯一性</button>
+        ${actions}
+      </div>
     </div>`;
 }
 
@@ -723,9 +829,40 @@ function renderAudit() {
   }).join('');
 }
 
+// ========== 链上存证交互 ==========
+
+function toggleEventLog(id) {
+  const body = document.getElementById(`events-${id}`);
+  const toggle = document.getElementById(`toggle-${id}`);
+  if (body.style.display === 'none') {
+    body.style.display = 'block';
+    toggle.textContent = '收起';
+  } else {
+    body.style.display = 'none';
+    toggle.textContent = '展开';
+  }
+}
+
+async function verifyCredential(hash, id) {
+  showToast('正在链上查验凭证哈希...', 'info');
+  await new Promise(r => setTimeout(r, 600));
+
+  // 在 Demo 数据中检查是否有重复
+  const matches = App.reimbursements.filter(r => r.credentialHash === hash);
+  if (matches.length > 0) {
+    const r = matches[0];
+    showToast(`验证通过：凭证已上链存证（ID: #${r.id}，Block: #${r.submitBlock}），唯一性校验通过`, 'success');
+  } else {
+    showToast('验证失败：链上未找到此凭证哈希', 'error');
+  }
+}
+
 // 暴露给 inline onclick
 window.doAction = doAction;
 window.openRejectModal = openRejectModal;
+window.toggleEventLog = toggleEventLog;
+window.verifyCredential = verifyCredential;
+window.filterByStat = filterByStat;
 
 // ========== 启动 ==========
 if (document.readyState === 'loading') {

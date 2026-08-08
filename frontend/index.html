@@ -46,19 +46,19 @@
       <h1>Web3 区块链报销全流程工作流</h1>
       <p class="hero-subtitle">凭证上链存证 · 多级审批留痕 · 防篡改审计 · 重复报销拦截</p>
       <div class="hero-stats">
-        <div class="stat-card">
+        <div class="stat-card" data-filter="all" onclick="filterByStat('all')">
           <div class="stat-value" id="statTotal">—</div>
           <div class="stat-label">总报销单</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" data-filter="0" onclick="filterByStat('0')">
           <div class="stat-value stat-pending" id="statPending">—</div>
           <div class="stat-label">待审批</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" data-filter="3" onclick="filterByStat('3')">
           <div class="stat-value stat-success" id="statSettled">—</div>
           <div class="stat-label">已结算</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" data-filter="4" onclick="filterByStat('4')">
           <div class="stat-value stat-danger" id="statRejected">—</div>
           <div class="stat-label">已驳回</div>
         </div>
