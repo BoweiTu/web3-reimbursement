@@ -113,6 +113,42 @@ const DEMO_DATA = [
     settledAt: 0,
     rejectReason: '培训预算已超本季度上限，请下季度重新申请',
     rejector: '0x1aB3...9fE2'
+  },
+  {
+    id: 5,
+    applicant: '0x2Bd4f6A8c0E2b4D6f8A0e2C4b6D8f0A2e4C6b8D0',
+    category: '会议费',
+    amount: '0.45',
+    credentialHash: '0xf8a0b2c4d6e8f0a2b4c6d8e0f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e6f8a0b2',
+    ipfsHash: 'QmA1bB3cC5dD7eE9fF1gG2hH4iI6jJ8kK0lL2mM4nN6oO',
+    description: '行业峰会参会费用，含门票及材料费',
+    status: 0, // Pending
+    departmentHead: '0x0000000000000000000000000000000000000000',
+    financeOfficer: '0x0000000000000000000000000000000000000000',
+    submittedAt: Date.now() - 3600000 * 2,
+    departmentApprovedAt: 0,
+    financeApprovedAt: 0,
+    settledAt: 0,
+    rejectReason: '',
+    rejector: '0x0000000000000000000000000000000000000000'
+  },
+  {
+    id: 6,
+    applicant: '0x4Ef7a9B1c3D5e7F9a1B3c5D7e9F1a3B5c7D9e1F3',
+    category: '差旅费',
+    amount: '1.50',
+    credentialHash: '0xa1b3c5d7e9f1a3b5c7d9e1f3a5b7c9d1e3f5a7b9c1d3e5f7a9b1c3d5e7f9a1b3c5',
+    ipfsHash: 'QmB2cC4dD6eE8fF0gG1hH3iI5jJ7kK9lL1mM3nN5oO7pP',
+    description: '北京技术交流会议差旅费，含机票及三晚住宿',
+    status: 0, // Pending
+    departmentHead: '0x0000000000000000000000000000000000000000',
+    financeOfficer: '0x0000000000000000000000000000000000000000',
+    submittedAt: Date.now() - 3600000 * 1,
+    departmentApprovedAt: 0,
+    financeApprovedAt: 0,
+    settledAt: 0,
+    rejectReason: '',
+    rejector: '0x0000000000000000000000000000000000000000'
   }
 ];
 
